@@ -1,0 +1,11 @@
+origin,duration,band,bandwidth,gain,integration,filename,date,backend,instrument,controller
+local,20s,"['800M', '1200M']",1M,50,1s,../data/raw/RTLSDR/SDR_01_20220501_135804_59.csv,20220501_135804,SDR_01,Cornetinha,pergamon
+local,20s,"['800M', '1200M']",1M,50,1s,../data/raw/RTLSDR/SDR_01_20220501_135820_59.csv,20220501_135820,SDR_01,Cornetinha,pergamon
+remote,20s,"['800M', '1200M']",1M,50,1s,~/SDR/SDR_01_20220501_135825_59.csv,20220501_135825,SDR_01,Cornetinha,pergamon
+remote,20s,"['800M', '1200M']",1M,50,1s,~/SDR/SDR_01_20220501_135853_59.csv,20220501_135853,SDR_01,Cornetinha,pergamon
+remote,15m,"['50M', '1700M']",1M,50,15m,~/SDR/SDR_01_20220501_202159_01.csv,20220501_202159,SDR_01,Cornetinha,pergamon
+local,20s,"['800M', '1200M']",1M,50,1s,../data/raw/RTLSDR/SDR_01_20220831_170100_59.csv,20220831_170100,SDR_01,Cornetinha,pergamon
+local,20s,"['800M', '1200M']",1M,50,1s,../data/raw/RTLSDR/SDR_01_20220831_170100_59.csv,20220831_170100,SDR_01,Cornetinha,pergamon
+remote,20s,"['800M', '1200M']",1M,50,1s,~/SDR/SDR_01_20220831_170114_59.csv,20220831_170114,SDR_01,Cornetinha,pergamon
+remote,20s,"['800M', '1200M']",1M,50,1s,~/SDR/SDR_01_20220831_170141_59.csv,20220831_170141,SDR_01,Cornetinha,pergamon
+remote,15m,"['50M', '1700M']",1M,50,15m,~/SDR/SDR_01_20220831_170229_01.csv,20220831_170229,SDR_01,Cornetinha,pergamon

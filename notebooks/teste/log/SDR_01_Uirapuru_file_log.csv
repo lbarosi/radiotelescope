@@ -1,0 +1,4 @@
+origin,duration,band,bandwidth,gain,integration,filename,date,backend,instrument,controller
+local,1m,"['800M', '1200M']",1M,50,1s,./teste/SDR_01_20220906_073706_01.csv,20220906_073706,SDR_01,Uirapuru,pergamon
+local,1m,"['800M', '1200M']",1M,50,1s,./teste/SDR_01_20220906_074143_01.csv,20220906_074143,SDR_01,Uirapuru,pergamon
+local,1m,"['800M', '1200M']",1M,50,1s,./teste/SDR_01_20220906_074334_01.csv,20220906_074334,SDR_01,Uirapuru,pergamon

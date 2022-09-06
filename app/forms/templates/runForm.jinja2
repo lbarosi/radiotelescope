@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+
+
+{% block content %}
+
+    <div class="form-wrapper">
+      <h2 class="title">Contact</h2>
+
+      <form method="POST" action="{{ url_for('contact') }}">
+
+          <fieldset class="form-field">
+              {{ form.name.label }}
+              {{ form.name(size=20) }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.gain.label }}
+              {{ form.gain }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.fs.label }}
+              {{ form.fs }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.fc.label }}
+              {{ form.fc }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.duration.label }}
+              {{ form.duration }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.n_channels.label }}
+              {{ form.n_channels }}
+          </fieldset>
+
+          <fieldset class="form-field">
+              {{ form.n_int.label }}
+              {{ form.n_int }}
+          </fieldset>
+
+
+          {{ form.submit }}
+
+      </form>
+    </div>
+
+{% endblock %}

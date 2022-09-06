@@ -1,0 +1,104 @@
+# Testando Funções do Pacote
+
+Níveis:
+- 01 - PLANNED
+- 02 - CODED
+- 03 - TESTING
+- 04 - TESTED
+- 05 - DOCUMENTED
+- 06 - REFACTOR
+- 09 - DONE
+
+- netutils
+     - RemoteClient
+          - connect **09**
+          - _deploy_key **09**
+          - deploy_local_key **09**
+          - run **09**
+     - run_command **09**
+     - get_OS **09**
+     - get_remote_OS **09**
+     - _iface_type **09**
+     - get_iface **09**
+     - get_ip **09**
+     - get_MAC **09**
+     - get_remote_MAC
+     - get_netmask **09**
+     - get_subnet **09**
+     - get_raspberry **09**
+     - report_raspberry **09**
+- misc
+     - multiprocess
+          - run_progress **09**
+          - run_detached **09**
+          - run_daemon **09**
+     - utils
+          - parse_time **09**
+          - get_PID **09**
+          - is_running **01**
+          - tidy_run **01**
+- backend
+     - controller
+          - Controller
+               - MAC OS folder remote connected
+          - LinuxBox(Controller)
+               - get_info **09**
+               - connect **09**
+               - run **09**
+               - run_remote **09**
+               - scan_LAN **09**
+               - sinc_files **09**
+     - Instrument
+          - Instrument
+               - set_location **09**
+               - set_observatory **09**
+     - Backend
+          - Backend
+               - bandwidth
+               - controller
+               - instrument
+               - gain
+               - integration_time
+               - modes
+               - name
+               - nominal_slope
+               - observing_time
+               - temperature
+               - slope
+               - NF
+               - freqs
+               - filenames
+               - _get_filenames **09**
+               - connect **09**
+               - fits2df **09**
+     - rtlsdrbackend
+          - _csv2df **09**
+          - csvs2df **09**
+          - csv2fit **09**
+          - load_measurement **09**
+          - save_measurement **09**
+          - scan **09**
+          - scan_mp **09**
+          - log_record **09**
+          - observe **09**
+          - observe_mp **09**
+          - calibrate **04**
+     - callistobackend
+          - CallistoSpectrometer
+               - load_measurement: implementar carregamento de medida FIT e PRN.
+               - save_measurement: callisto salva automaticamente.
+               - scan: scan inline e scan detached na mesma função.
+               - observe: observe inline e observe detached na mesma função.
+               - _from_digits_to_mV **09**
+               - _calibrate_slope **09**
+               - load_calibration **09**
+               - do_calibration: implementar calibrate detached
+               - calibrate **09**
+     - gnuradiobackend
+          - GNURadioBackend
+               - load_measurement
+               - save_measurement
+               - scan_command
+               - start_tcp
+               - observe
+               - calibrate
