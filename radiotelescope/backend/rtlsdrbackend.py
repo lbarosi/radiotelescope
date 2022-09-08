@@ -106,7 +106,7 @@ class RTLSDRpowerBackend(Backend):
     def csvs2df(filenames=None):
         if filenames:
             data = []
-            for file in filenames:
+            for file in filenames.files:
                 data.append(RTLSDRpowerBackend._csv2df(filename = file))
             result = pd.concat(data)
         else:
@@ -239,7 +239,7 @@ class RTLSDRpowerBackend(Backend):
             # run_detach quebra via ssh. Opção run_remote sem chamada de stdout tmb não é bloqueante.
             self.controller.run_remote(command=scan, stdout=False)
         else:
-            result = multiprocess.run_detached(thread=self.controller.run, command=scan, monitor=monitor, interval=interval)
+            result = multiprocess.run_detached(target=self.controller.run, command=scan, monitor=monitor, interval=interval)
         return
 
     def log_record(self, **kwargs):

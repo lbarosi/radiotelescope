@@ -32,7 +32,8 @@ def run_progress(target=None, interval=60, **kwargs):
     print("processo terminado em {:2f} segundos.".format(elapsed))
     return
 
-def run_detached(thread=None, monitor=True, interval=None, *args, **kwargs):
+
+def run_detached(target=None, monitor=True, interval=None, *args, **kwargs):
     """Roda em background.
 
     Roda o controle de execução do thread e o thread, cada um em um processo, deixando o sistema livre para continuar execução.
@@ -43,14 +44,18 @@ def run_detached(thread=None, monitor=True, interval=None, *args, **kwargs):
         *args (type): parâmetros para thread `*args`.
         **kwargs (type): parâmetros para thread `**kwargs`.
     """
-    target = kwargs.pop("target", None)
     if monitor:
-        process = multiprocessing.Process(target = run_progress, args=args, kwargs={"target":target, "interval":interval, **kwargs})
+        process = multiprocessing.Process(
+            target=run_progress,
+            args=args,
+            kwargs={"target":target, "interval":interval, **kwargs}
+            )
         process.start()
     else:
-        process = multiprocessing.Process(target = thread, args=args, kwargs=kwargs, daemon=True)
+        process = multiprocessing.Process(target = target, args=args, kwargs=kwargs, daemon=True)
         process.start()
     return
+
 
 def run_daemon(thread=None, *args, **kwargs) -> multiprocessing.Process:
     """Roda o comando indicado em modo background, liberando a execução do resto do programa.

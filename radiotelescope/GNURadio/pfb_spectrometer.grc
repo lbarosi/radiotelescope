@@ -145,7 +145,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '"rtl_tcp=192.168.15.83:1234"'
+    value: '"rtl=0"'
   states:
     bus_sink: false
     bus_source: false
@@ -501,14 +501,14 @@ blocks:
     freq: freq
     mode: mode
     n_samples: n_samples
-    prefix: name
+    prefix: prefix
     samp_rate: samp_rate
     vec_length: vec_length
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [968, 468.0]
+    coordinate: [960, 468.0]
     rotation: 180
     state: true
 - name: import_0
@@ -906,4 +906,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.2.0
+  grc_version: 3.10.3.0
