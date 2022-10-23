@@ -28,7 +28,7 @@ from scipy.signal import savgol_filter as savgol_filter
 # ------------------
 # import radiotelescope.backend.controller as Controller
 # import radiotelescope.backend.instrument as Instrument
-import callisto
+# import callisto
 import radiotelescope.misc.multiprocess as multiprocess
 import radiotelescope.misc.utils as utils
 from radiotelescope.backend.backend import Backend as Backend
@@ -106,7 +106,7 @@ class RTLSDRpowerBackend(Backend):
     def csvs2df(filenames=None):
         if filenames:
             data = []
-            for file in filenames.files:
+            for file in filenames:
                 data.append(RTLSDRpowerBackend._csv2df(filename = file))
             result = pd.concat(data)
         else:

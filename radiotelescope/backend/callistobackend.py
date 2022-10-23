@@ -27,7 +27,7 @@ from scipy.signal import savgol_filter as savgol_filter
 # ------------------
 # import radiotelescope.backend.controller as Controller
 # import radiotelescope.backend.instrument as Instrument
-import callisto
+# import callisto
 import radiotelescope.misc.multiprocess as multiprocess
 import radiotelescope.misc.utils as utils
 from radiotelescope.backend.backend import Backend as Backend

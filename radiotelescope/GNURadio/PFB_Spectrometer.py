@@ -71,7 +71,7 @@ class PFB_Spectrometer(gr.top_block):
         self.osmosdr_source_0.set_bb_gain(20, 0)
         self.osmosdr_source_0.set_antenna('', 0)
         self.osmosdr_source_0.set_bandwidth(0, 0)
-        self.fits_sink_fits_sink_0 = fits_sink.fits_sink( vec_length, samp_rate, freq, name, n_samples, mode, False, True)
+        self.fits_sink_fits_sink_0 = fits_sink.fits_sink( vec_length, samp_rate, freq, name, n_samples, mode, csv, fit)
         self.fft_vxx_0 = fft.fft_vcc(vec_length, True, window.blackmanharris(vec_length), True, 1)
         self.blocks_stream_to_vector_0_0_0_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, vec_length)
         self.blocks_stream_to_vector_0_0_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, vec_length)

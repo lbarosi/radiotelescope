@@ -8,7 +8,9 @@ DATE: 09.04.2022
 #------------------
 # Stdlib imports
 from abc import ABC, abstractmethod
+import fcntl
 import io
+import logging
 import os
 import re
 import sys
@@ -22,6 +24,9 @@ import pandas as pd
 #------------------
 import radiotelescope.netutils.netutils as netutils
 #------------------
+logger = logging.getLogger(__name__)
+# Equivalent of the _IO('U', 20) constant in the linux kernel.
+USBDEVFS_RESET = ord('U') << (4*2) | 20
 
 class Controller(ABC):
     """Classe para controlador, uma abstração de computador com IS arbitrário, usuário e conexão de rede.
@@ -51,10 +56,10 @@ class Controller(ABC):
         self._name = name
         self._user = user
         self._remote = remote
+        self._local_folder = local_folder
         self.interface = interface
         self.MAC = MAC
         self.OS = OS
-        self.local_folder = local_folder
         self.remote = remote
         self.remote_folder = remote_folder
         self.remote_IP = remote_IP
@@ -100,6 +105,17 @@ class Controller(ABC):
     def remote(self, remote):
         """Propriedade: instância Controller remoto."""
         self._remote = remote
+
+    @property
+    def local_folder(self):
+        """Propriedade: nome da instância."""
+        return self._local_folder
+
+    @local_folder.setter
+    def local_folder(self, local_folder):
+        """Propriedade: nome da instância."""
+        self._local_folder = local_folder
+
 
     @abstractmethod
     def connect(self, IP=None, user=None):
@@ -238,3 +254,26 @@ class LinuxBox(Controller):
         else:
             print("Você deve escolher `origin` local ou remote.")
         return
+
+    def get_device(self, DEVICE):
+        out = self.run("lsusb")
+        lines = out.decode('utf-8').splitlines()
+        result = None
+        for line in lines:
+            if DEVICE in line:
+                parts = line.split()
+                bus = parts[1]
+                dev = parts[3][:3]
+                result = '/dev/bus/usb/%s/%s' % (bus, dev)
+        return result
+
+    def reset_device(self, DEVICE):
+        dev_path = self.get_device(DEVICE)
+        try:
+            fd = os.open(dev_path, os.O_WRONLY)
+            fcntl.ioctl(fd, USBDEVFS_RESET, 0)
+            os.close(fd)
+            return True
+        except TypeError:
+            logger.error("Dispositivo não encontrado")
+            return False
