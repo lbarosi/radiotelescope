@@ -37,7 +37,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 'False'
+    value: 'True'
   states:
     bus_sink: false
     bus_source: false
@@ -145,7 +145,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '"rtl=0"'
+    value: '"rtl_tcp=192.168.15.81:1234"'
   states:
     bus_sink: false
     bus_source: false
@@ -496,8 +496,8 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    csv: 'False'
-    fit: 'True'
+    csv: csv
+    fit: fit
     freq: freq
     mode: mode
     n_samples: n_samples

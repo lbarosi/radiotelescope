@@ -9,6 +9,7 @@ AUTHOR: Luciano Barosi
 DATE: 09.04.2022
 """
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import datetime
 import os
 from glob import glob
@@ -28,7 +29,7 @@ from scipy.signal import savgol_filter as savgol_filter
 # ------------------
 # import radiotelescope.backend.controller as Controller
 # import radiotelescope.backend.instrument as Instrument
-import callisto
+# import callisto
 import radiotelescope.misc.multiprocess as multiprocess
 import radiotelescope.misc.utils as utils
 # Preparando log ----------------------------------------------------
@@ -56,6 +57,7 @@ class Backend(ABC):
         self._nominal_slope = nominal_slope
         self._observing_time = observing_time
         self._temperature = temperature
+        self.is_connected = False
         self.slope = None
         self.NF = None
         self.freqs = None
@@ -169,36 +171,26 @@ class Backend(ABC):
         """Ajusta o tempo de observação."""
         self.__observing_time = observing_time
 
-    def _get_filenames(self, path=None, extension=None, modes=None):
+    def _get_filenames(self, path=None, extension=None, mode=None):
         """Obtem todos os arquivos do diretório.
 
         Obtem os arquivos de um diretório e ordena Dataframe com informações
         de timestamps e modos de operação.
         """
-        # Os arquivos são armazenados com informação dos modos.
-        # A classe tem que ser alimentada com esta informação também.
-        if not modes:
-            try:
-                modes = self.modes
-            except AttributeError:
-                print("`mode` não definido. Usando `*`")
-                modes = {"todos" : "*"}
-                pass
-        # Caminho dos arquivos para serem buscados.
         if not path:
             path = self.controller.local_folder
         # Se extensão não é informada lê todos os arquivos.
         if not extension:
             extension = "*"
         files = []
-        for key, value in modes.items():
-            filenames = glob(path + self.name + "_" + "*" + str(value) + "." + extension)
-            df = pd.DataFrame({"files":filenames, "mode":value})
-            files.append(df)
-        df = pd.concat(files)
+        filenames = glob(path + self.name + "_" + "*" + "." + extension)
+        df = pd.DataFrame({"files":filenames})
         # Obtem timestamp do nome dos arquivos e
         # junta com `T` para ler no formato isort.
         df['timestamps'] = df.files.apply(lambda row: "T".join(row.split('/')[-1].split('.')[-2].split("_")[-3:-1]))
+        df["mode"] = df.files.apply(lambda row: (row.split("/")[-1].split(".")[-2].split("_")[-1]))
+        df["mode"] = df["mode"].astype("str")
+        df = df[df["mode"] == mode]
         # Índice do dataframe é o tempo.
         # É registrada informação de horário UTC.
         try:
@@ -226,7 +218,7 @@ class Backend(ABC):
         return self
 
     @staticmethod
-    def fits2df(filenames=None):
+    def fits2df(filenames=None, n_integration=100):
         """Lê arquivo FIT em um dataframe.
 
         A entrada deve ser uma lista. Cada arquivos FIT deve estar no formato callisto.
@@ -242,13 +234,19 @@ class Backend(ABC):
                 hdu_data.append(data)
                 freqs = hdul[1].data[0][1]
                 times = hdul[1].data[0][0]
-                vector = stamp + pd.to_timedelta(times, unit="s")
+                #delta = ((pd.to_datetime(hdul[0].header['DATE-END'] + "T" + hdul[0].header['TIME-END']) - stamp)/times.size).total_seconds()
+                delta = n_integration * freqs.size / ((freqs[-1] - freqs[0])*1e6)
+                vector = stamp + delta*pd.to_timedelta(times, unit="s")
                 timevector.append(vector)
-        # União de todos os índices temporais.
-        times = pd.DatetimeIndex(np.unique(np.hstack(timevector)))
-        # Empilhando leituras. Colunas são frequências.
-        data = np.hstack(hdu_data).T
-        result = pd.DataFrame( data, columns=freqs, index = times).sort_index()
+        if len(filenames) > 1:
+            # União de todos os índices temporais.
+            times = pd.DatetimeIndex(np.unique(np.hstack(timevector)))
+            # Empilhando leituras. Colunas são frequências.
+            data = np.vstack(hdu_data)
+        else:
+            times = pd.DatetimeIndex(np.unique(timevector))
+            data = hdu_data[0]
+        result = pd.DataFrame(data, columns=freqs, index=times).sort_index()
         return result
 
     @abstractmethod

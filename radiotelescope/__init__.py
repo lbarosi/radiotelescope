@@ -6,3 +6,6 @@ from radiotelescope.backend.gnuradiobackend import GNURadioBackend as GNURadioBa
 from radiotelescope.netutils import netutils as netutils
 from radiotelescope.misc import utils as utils
 from radiotelescope.misc import multiprocess as multiprocess
+
+import logging
+logger = logging.getLogger(__name__)

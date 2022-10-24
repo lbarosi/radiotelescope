@@ -20,7 +20,7 @@ def run_progress(target=None, interval=60, **kwargs):
         interval (type): tempo para reportar andamento. Defaults to 60.
         **kwargs (type): passa parâmetros para `thread`.
     """
-    process = multiprocessing.Process(target = target, kwargs = kwargs)
+    process = multiprocessing.Process(target = target, args=args, kwargs = kwargs)
     process.start()
     pid = process.pid
     start = perf_counter()

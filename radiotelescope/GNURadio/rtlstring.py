@@ -1,2 +1,0 @@
-#RTL_GLOBAL="rtl_tcp=192.168.15.83:1234"
-RTL_GLOBAL="rtl=0"
