@@ -137,10 +137,10 @@ class Observations:
         return df
 
 
-    def load_observation(self, mode="59", extension="fit"):  # SKY mode default.
+    def load_observation(self, mode=59, extension="fit"):  # SKY mode default.
         """Check existent datafiles and retrieve information for observation as given parameters."""
         # Read filenames and parse timestamps
-        filenames = self.backend._get_filenames(extension=extension, modes=mode).filenames
+        filenames = self.backend._get_filenames(extension=extension, mode=mode).filenames
         filenames = filenames.loc[self.t_start:self.t_end]
         try:
             df = self.backend.load_measurement(filenames=filenames, mode=mode, extension=extension)

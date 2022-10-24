@@ -171,7 +171,7 @@ class Backend(ABC):
         """Ajusta o tempo de observação."""
         self.__observing_time = observing_time
 
-    def _get_filenames(self, path=None, extension=None, modes=None):
+    def _get_filenames(self, path=None, extension=None, mode=None):
         """Obtem todos os arquivos do diretório.
 
         Obtem os arquivos de um diretório e ordena Dataframe com informações
@@ -179,13 +179,13 @@ class Backend(ABC):
         """
         # Os arquivos são armazenados com informação dos modos.
         # A classe tem que ser alimentada com esta informação também.
-        if not modes:
-            try:
-                modes = self.modes
-            except AttributeError:
-                print("`mode` não definido. Usando `*`")
-                modes = {"todos" : "*"}
-                pass
+        # if not modes:
+        #     try:
+        #         modes = self.modes
+        #     except AttributeError:
+        #         print("`mode` não definido. Usando `*`")
+        #         modes = {"todos" : "*"}
+        #         pass
         # Caminho dos arquivos para serem buscados.
         if not path:
             path = self.controller.local_folder
@@ -193,14 +193,13 @@ class Backend(ABC):
         if not extension:
             extension = "*"
         files = []
-        for key, value in modes.items():
-            filenames = glob(path + self.name + "_" + "*" + str(value) + "." + extension)
-            df = pd.DataFrame({"files":filenames, "mode":value})
-            files.append(df)
-        df = pd.concat(files)
+        filenames = glob(path + self.name + "_" + "*" + "." + extension)
+        df = pd.DataFrame({"files":filenames})
         # Obtem timestamp do nome dos arquivos e
         # junta com `T` para ler no formato isort.
         df['timestamps'] = df.files.apply(lambda row: "T".join(row.split('/')[-1].split('.')[-2].split("_")[-3:-1]))
+        df["mode"] = df.files.apply(lambda row: int(row.split("/")[-1].split(".")[-2].split("_")[-1]))
+        df = df[df["mode"] == mode]
         # Índice do dataframe é o tempo.
         # É registrada informação de horário UTC.
         try:
