@@ -12,6 +12,7 @@ import os
 from glob import glob
 import importlib
 import logging
+import multiprocessing
 import pathlib
 import psutil
 import time
@@ -108,6 +109,7 @@ class GNURadioBackend(Backend):
 
 
     def observe(self, **kwargs):
+        DAEMON = kwargs.pop("daemon", None)
         """Testa conexão com RTL dongle e roda script gnuradio com os parâmetros da observação fornecidos como dicionário."""
         try:
             logger.debug("Importando módulo {}".format(self.GNUScript))
@@ -119,8 +121,12 @@ class GNURadioBackend(Backend):
         args = Args(**kwargs)
         logger.debug("Testando conexão com dispositivo")
         if self.controller.reset_device(self.DEVICE):
-            logger.debug("Iniciando GNUradio script local.")
-            GNURADIO.main(args)
+            if DAEMON is not True:
+                logger.debug("Iniciando GNUradio script local.")
+                GNURADIO.main(args)
+            else:
+                logger.debug("Iniciando GNUradio script local como daemon.")
+                multiprocessing.Process(target=GNURADIO.main, args=(args,), daemon=True).start()
         return
 
 

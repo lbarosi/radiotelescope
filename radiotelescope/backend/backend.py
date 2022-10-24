@@ -177,16 +177,6 @@ class Backend(ABC):
         Obtem os arquivos de um diretório e ordena Dataframe com informações
         de timestamps e modos de operação.
         """
-        # Os arquivos são armazenados com informação dos modos.
-        # A classe tem que ser alimentada com esta informação também.
-        # if not modes:
-        #     try:
-        #         modes = self.modes
-        #     except AttributeError:
-        #         print("`mode` não definido. Usando `*`")
-        #         modes = {"todos" : "*"}
-        #         pass
-        # Caminho dos arquivos para serem buscados.
         if not path:
             path = self.controller.local_folder
         # Se extensão não é informada lê todos os arquivos.
@@ -198,7 +188,8 @@ class Backend(ABC):
         # Obtem timestamp do nome dos arquivos e
         # junta com `T` para ler no formato isort.
         df['timestamps'] = df.files.apply(lambda row: "T".join(row.split('/')[-1].split('.')[-2].split("_")[-3:-1]))
-        df["mode"] = df.files.apply(lambda row: int(row.split("/")[-1].split(".")[-2].split("_")[-1]))
+        df["mode"] = df.files.apply(lambda row: (row.split("/")[-1].split(".")[-2].split("_")[-1]))
+        df["mode"] = df["mode"].astype("str")
         df = df[df["mode"] == mode]
         # Índice do dataframe é o tempo.
         # É registrada informação de horário UTC.

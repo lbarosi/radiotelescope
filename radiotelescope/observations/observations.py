@@ -24,6 +24,7 @@ from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
                                AutoMinorLocator)
 import numpy as np
 import pandas as pd
+import scipy as sp
 from scipy.signal import find_peaks
 from pytz import timezone
 # Local imports
@@ -137,7 +138,7 @@ class Observations:
         return df
 
 
-    def load_observation(self, mode=59, extension="fit"):  # SKY mode default.
+    def load_observation(self, mode="59", extension="fit"):  # SKY mode default.
         """Check existent datafiles and retrieve information for observation as given parameters."""
         # Read filenames and parse timestamps
         filenames = self.backend._get_filenames(extension=extension, mode=mode).filenames
@@ -151,8 +152,31 @@ class Observations:
         return self
 
 
-    def calibrate(self, duration):
-        pass
+    def calibrate(self, data=None, T_rx=None, TEMP=300, T_HOT=300, T_WARM=50):
+        if T_rx is None:
+            # carrega T_hot
+            df_hot = self.backend._get_filenames(extension="fit", mode="03").filenames
+            df_hot_data = self.backend.load_measurement(filenames=df_hot)
+            hot_data = df_hot_data.median(axis=0)
+            V_hot = sp.signal.savgol_filter(hot_data, int(hot_data.shape[0]/50), 2, mode="nearest")
+            # carrega T_warm
+            df_warm = self.backend._get_filenames(extension="fit", mode="02").filenames
+            df_warm_data = self.backend.load_measurement(filenames=df_warm)
+            warm_data = df_warm_data.median(axis=0)
+            V_warm = sp.signal.savgol_filter(warm_data, int(warm_data.shape[0]/50), 2, mode="nearest")
+            # temperatura do receptor
+            Yc = 10**((V_hot-V_warm)/10)
+            T_rx = (T_HOT - Yc * T_WARM)/(Yc-1)
+        # carrega T_cold
+        df_cold = self.backend._get_filenames(extension="fit", mode="01").filenames
+        df_cold_data = self.backend.load_measurement(filenames=df_cold)
+        cold_data = df_cold_data.median(axis=0)
+        V_cold = sp.signal.savgol_filter(cold_data, int(cold_data.shape[0]/50), 2, mode="nearest")
+        # Calibrando
+        Ys = 10**((data - V_cold)/10)
+        T_A = T_rx * (Ys - 1) + Ys * TEMP
+        # Verifica se calibração é muito antiga
+        return T_A, T_rx
 
 
     def plot_waterfall(self, df = None, freqs = None, duration = None, sampling = None, colorbar = True):
@@ -172,8 +196,8 @@ class Observations:
         fmt_minor = mdates.MinuteLocator(interval = 15)
         #----------------
         # average spectrum.
-        SN = df.mean(axis=0)/df.std(axis=0)
-        flux = df.median(axis = 1)
+        SN = df.mean(axis=1)/df.std(axis=1)
+        spectrum = df.median(axis = 0)
         #----------------
         # create grid format.
         fig = plt.figure(figsize=(16, 10))
@@ -192,14 +216,14 @@ class Observations:
         #--------------------------
         # plot averaged spectrum in the vertical.
         # plot averaged spectrum in the vertical.
-        ver_fig.plot(SN, freqs, c = 'red')
+        ver_fig.plot(spectrum, freqs, c = 'red')
         ver_fig.grid()
         ver_fig.yaxis.tick_right()
         ver_fig.yaxis.set_label_position('right')
-        ver_fig.set_xlabel("S/N")
+        ver_fig.set_xlabel("Flux")
         # plot averaged spectrum in the vertical.
-        hor_fig.plot(df.index, flux, c = 'red')
-        hor_fig.set_ylabel("dB")
+        hor_fig.plot(df.index, SN, c = 'red')
+        hor_fig.set_ylabel("S/N")
         hor_fig.xaxis.tick_top()
         hor_fig.xaxis.set_minor_locator(fmt_minor)
         hor_fig.xaxis.set_major_formatter(hfmt)
