@@ -140,7 +140,7 @@ class Observations:
     def load_observation(self, mode="59", extension="fit"):  # SKY mode default.
         """Check existent datafiles and retrieve information for observation as given parameters."""
         # Read filenames and parse timestamps
-        filenames = self.backend._get_filenames().filenames
+        filenames = self.backend._get_filenames(extension=extension, modes=mode).filenames
         filenames = filenames.loc[self.t_start:self.t_end]
         try:
             df = self.backend.load_measurement(filenames=filenames, mode=mode, extension=extension)
@@ -172,7 +172,7 @@ class Observations:
         fmt_minor = mdates.MinuteLocator(interval = 15)
         #----------------
         # average spectrum.
-        spectrum = df.median(axis=0)
+        SN = df.mean(axis=0)/df.std(axis=0)
         flux = df.median(axis = 1)
         #----------------
         # create grid format.
@@ -192,13 +192,12 @@ class Observations:
         #--------------------------
         # plot averaged spectrum in the vertical.
         # plot averaged spectrum in the vertical.
-        ver_fig.plot(spectrum, freqs, c = 'red')
+        ver_fig.plot(SN, freqs, c = 'red')
         ver_fig.grid()
         ver_fig.yaxis.tick_right()
         ver_fig.yaxis.set_label_position('right')
-        ver_fig.set_xlabel("dB")
+        ver_fig.set_xlabel("S/N")
         # plot averaged spectrum in the vertical.
-        flux = df.median(axis=1)
         hor_fig.plot(df.index, flux, c = 'red')
         hor_fig.set_ylabel("dB")
         hor_fig.xaxis.tick_top()
