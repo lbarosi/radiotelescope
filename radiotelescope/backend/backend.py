@@ -190,7 +190,8 @@ class Backend(ABC):
         df['timestamps'] = df.files.apply(lambda row: "T".join(row.split('/')[-1].split('.')[-2].split("_")[-3:-1]))
         df["mode"] = df.files.apply(lambda row: (row.split("/")[-1].split(".")[-2].split("_")[-1]))
         df["mode"] = df["mode"].astype("str")
-        df = df[df["mode"] == mode]
+        if mode is not None:
+            df = df[df["mode"] == mode]
         # Índice do dataframe é o tempo.
         # É registrada informação de horário UTC.
         try:
@@ -253,9 +254,9 @@ class Backend(ABC):
     def load_measurement():
         pass
 
-    @abstractmethod
-    def save_measurement():
-        pass
+    # @abstractmethod
+    # def save_measurement():
+    #     pass
 
     @abstractmethod
     def observe():
