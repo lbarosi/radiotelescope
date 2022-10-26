@@ -14,6 +14,7 @@ from matplotlib.colorbar import Colorbar
 from matplotlib import cm
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from numba import jit
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -310,3 +311,114 @@ def plot_mosaic(data=None, ax=None):
             axes.append(_plot_waterfall(data=dfs[0, col],
                                         ax=ax[col]))
     return axes
+
+
+@jit(nopython=True, nogil=True, cache=True, error_model='numpy', fastmath=True,
+     boundscheck=False)
+def mad_std(data):
+    """Calculate Median Absolute Deviation (MAD) for an 1D numpy array.
+
+    Args:
+        data (array): numpy 1D `data`.
+
+    Returns:
+        array: Array with same shape as `data`.
+
+    """
+    # Define function to use as median
+    func = np.nanmedian
+    data_median = func(data)
+    MAD = func(np.abs(data - data_median))
+    # MAD equivalent to 1 sigma if normal distribution is assumed
+    result = MAD * 1.482602218505602
+    return result
+
+
+def MAD_filter(df, window=20, threshold=3, imputation="max", value=0, axis=0):
+    """Apply a MAD filter to dataframe.
+
+    Args:
+        df (DataFrame): `df`.
+        window (int or tuple): window size to filter, and axis specification `window`. Defaults to (1,20).
+        threshold (float): filter values  `threshold` sigma apart. Defaults to 3.
+        imputation (str): "max", "median", "constant" indicates how to replace the values `imputation`. Defaults to "max".
+        value (float): if `imputation` is "constant", use this value to replace filtered values in dataframe. `value`. Defaults to 0.
+
+    Returns:
+        DataFrame: same shape as entry.
+
+    """
+    # DataFrame to store filtered data
+    result = df.copy()
+    if not isinstance(df, pd.DataFrame):
+        result = pd.DataFrame(df)
+    data_median = result.rolling(window=window,
+                                 min_periods=1,
+                                 center=True,
+                                 closed='both',
+                                 axis=axis).apply(np.median,
+                                                  engine="numba",
+                                                  raw=True)
+    data_MAD = result.rolling(window=window,
+                              min_periods=1,
+                              center=True,
+                              closed='both',
+                              axis=axis).apply(mad_std,
+                                               engine="numba",
+                                               raw=True)
+
+    mask = np.abs(result - data_median) >= threshold*data_MAD
+
+    df_mask = 0 * result
+    df_mask[mask] = 1
+
+    if imputation == "max":
+        # Substitute filtered values with 3*sigma value.
+        result[mask] = threshold * data_median[mask]
+    if imputation == "median":
+        # Substitute filtered values with median value.
+        result[mask] = data_median[mask]
+    if imputation == "constant":
+        # Substitute filtered values with constant value.
+        result[mask] = value
+
+    return result, df_mask
+
+
+def RFI_filter(df, window=10, threshold=3.5, imputation="median", axis=0):
+    """Apply MAD filter and normalize dataframe with parameters.
+
+    Args:
+        df (DataFrame): Description of parameter `df`.
+        windows (list): list of tuples passed to `normalize`function `windows`. Defaults to [(11,1),(1,5)].
+        MAD (tuple): window to apply the MAD filter `MAD`. Defaults to (1,20).
+        threshold (float): threshold in number of std `threshold`. Defaults to 3.5.
+        norm (str): "orig" or "MAD" indicates the dataframe to be used in the final normalization `norm`. Defaults to "orig".
+
+    Returns:
+        DataFrame: Same shape as entry.
+
+    """
+    df = df.T
+    smooth_spectrum, _ = MAD_filter(df.median(axis=1),
+                                    window=window,
+                                    threshold=1,
+                                    imputation="median",
+                                    axis=axis)
+    spectrum = (df/smooth_spectrum.values)
+    filt_spectrum, mask = MAD_filter(spectrum,
+                                     window=window,
+                                     threshold=threshold,
+                                     imputation=imputation,
+                                     axis=axis)
+    filt_spectrum = filt_spectrum.T
+    spectrum = spectrum
+    mask = mask.T
+    return filt_spectrum, spectrum, mask
+
+
+def I_metric(dfF, dfU, axis=0):
+    MF = dfF.mean(axis=axis)/dfF.std(axis=axis)
+    MU = dfU.mean(axis=axis)/dfU.std(axis=axis)
+    result = 10 * np.log10(MF/MU)
+    return result

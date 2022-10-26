@@ -20,7 +20,7 @@ def run_progress(target=None, interval=60, **kwargs):
         interval (type): tempo para reportar andamento. Defaults to 60.
         **kwargs (type): passa parâmetros para `thread`.
     """
-    process = multiprocessing.Process(target = target, args=args, kwargs = kwargs)
+    process = multiprocessing.Process(target = target, kwargs = kwargs)
     process.start()
     pid = process.pid
     start = perf_counter()
@@ -33,7 +33,7 @@ def run_progress(target=None, interval=60, **kwargs):
     return
 
 
-def run_detached(target=None, monitor=True, interval=None, *args, **kwargs):
+def run_detached(target=None, monitor=True, interval=None, **kwargs):
     """Roda em background.
 
     Roda o controle de execução do thread e o thread, cada um em um processo, deixando o sistema livre para continuar execução.
@@ -47,12 +47,11 @@ def run_detached(target=None, monitor=True, interval=None, *args, **kwargs):
     if monitor:
         process = multiprocessing.Process(
             target=run_progress,
-            args=args,
             kwargs={"target":target, "interval":interval, **kwargs}
             )
         process.start()
     else:
-        process = multiprocessing.Process(target = target, args=args, kwargs=kwargs, daemon=True)
+        process = multiprocessing.Process(target=target, kwargs=kwargs, daemon=True)
         process.start()
     return
 

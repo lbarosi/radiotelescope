@@ -6,36 +6,23 @@ PACKAGE: Radiotelecope
 AUTHOR: Luciano Barosi
 DATE: 26.04.2022
 DATE: 23.10.2022
+DATE: 25.10.2022
+
+
+
 """
-from datetime import datetime
-import os
-from glob import glob
 import importlib
 import logging
 import multiprocessing
-import pathlib
-import psutil
-import time
-import sys
-from astropy import units as u
-from astropy.io import fits
-from astropy.table import Table
-import numpy as np
-import pandas as pd
-from paramiko.auth_handler import SSHException
-from scipy.signal import savgol_filter as savgol_filter
 # ------------------
 # local imports
 # ------------------
-import radiotelescope.misc.multiprocess as multiprocess
 import radiotelescope.misc.utils as utils
-import radiotelescope.backend.backend as backend
 from radiotelescope.backend.backend import Backend as Backend
-#import radiotelescope.GNURadio.GNUController as GNURADIO
-import radiotelescope.misc.utils as utils
-# Preparando log ----------------------------------------------------
+# Preparando log ----------------------
 logger = logging.getLogger(__name__)
-# -------------------------------------------------------------------
+
+# -------------------------------------
 # Classe argumento para GNURADIO
 class Args:
         """Argumentos para script GNURADIO."""
@@ -117,7 +104,6 @@ class GNURadioBackend(Backend):
         except ImportError:
             logger.error("Script GNURADIO não pode ser carregada.")
             return
-        #rtlsdr = str(kwargs.pop("rtlsdr", self.RTLSDR))
         args = Args(**kwargs)
         logger.debug("Testando conexão com dispositivo")
         if self.controller.reset_device(self.DEVICE):
