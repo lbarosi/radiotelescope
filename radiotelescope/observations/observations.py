@@ -18,14 +18,9 @@ from numba import jit
 import numpy as np
 import pandas as pd
 import scipy as sp
-# Local imports
-# import radiotelescope.backend.backend as backend
-# from radiotelescope.backend.backend import Backend as Backend
+import radiotelescope.observations.sky as sky
 # Preparando log -----
 logger = logging.getLogger(__name__)
-# --------------------
-# main class definition.
-# --------------------
 
 
 class Observations:
@@ -39,6 +34,7 @@ class Observations:
         self._backend = backend
         self._path = path
         self.data = None
+        self.sky = None
         return
 
     @property
@@ -196,8 +192,7 @@ class Observations:
         # Verifica se calibração é muito antiga
         return T_A, T_rx
 
-    def plot_waterfall(self, df=None, freqs=None, duration=None, sampling=None,
-                       colorbar=True):
+    def plot_waterfall(self, df=None, freqs=None, duration=None, sampling=None, colorbar=True, **kwargs):
         freqs = freqs
         duration = duration
         sampling = sampling
@@ -207,7 +202,7 @@ class Observations:
             df = self.filter_data(df, freqs=freqs, sampling=sampling,
                                   duration=duration)
         # limits
-        freqs = df.columns
+        freqs = df.columns.astype("float")
         begin = df.index[0]
         end = df.index[-1]
         mt = mdates.date2num((begin, end))
@@ -225,7 +220,7 @@ class Observations:
         ver_fig = fig.add_subplot(grid[2:-2, -1], sharey=spectrum_ax)
         main = spectrum_ax.imshow(df.T, aspect='auto',
                                   extent=[mt[0], mt[-1], freqs[-1], freqs[0]],
-                                  cmap=cm.inferno)
+                                  cmap=cm.inferno, **kwargs)
         spectrum_ax.set_ylabel("Frequencies (MHz)")
         spectrum_ax.set_xlabel("Time")
         spectrum_ax.xaxis.set_major_formatter(hfmt)
@@ -259,12 +254,23 @@ class Observations:
         fig = self.plot_timeseries(df_filter, self.df_sky)
         return fig
 
+    def make_sky(self, interval=1 * u.min):
+        t_start = self.data.index[0]
+        t_end = self.data.index[-1]
+        duration = (t_end - t_start).total_seconds() * u.s
+        instrument = self.backend.instrument.set_observatory()
+        self.sky = sky.Sky(instrument=instrument,
+                           t_start=t_start,
+                           duration=duration).\
+            make_timevector(delta=interval).make_pointings()
+        self.sky.get_all_beam()
+        return self
 
 # --------------------------------------
 # Utilidades para gráficos
 # --------------------------------------
-def _plot_waterfall(data=None, ax=None):
-    freqs = data.columns
+def _plot_waterfall(data=None, ax=None, **kwargs):
+    freqs = data.columns.astype("float")
     begin = data.index[0]
     end = data.index[-1]
     mt = mdates.date2num((begin, end))
@@ -273,14 +279,14 @@ def _plot_waterfall(data=None, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(18, 6))
     ax.imshow(data.T, aspect='auto', extent=[mt[0], mt[-1], freqs[-1],
-              freqs[0]], cmap=cm.inferno)
+              freqs[0]], cmap=cm.inferno, **kwargs)
     ax.set_ylabel("Frequencies (MHz)")
     ax.set_xlabel("Time")
     ax.xaxis.set_major_formatter(hfmt)
     return ax
 
 
-def plot_mosaic(data=None, ax=None):
+def plot_mosaic(data=None, ax=None, **kwargs):
     axes = []
     num = len(data)
     if (num == 3) or (num > 4):
@@ -305,11 +311,11 @@ def plot_mosaic(data=None, ax=None):
         for row in np.arange(rows):
             for col in np.arange(cols):
                 axes.append(_plot_waterfall(data=dfs[row, col],
-                                            ax=ax[row, col]))
+                                            ax=ax[row, col], **kwargs))
     else:
         for col in np.arange(cols):
             axes.append(_plot_waterfall(data=dfs[0, col],
-                                        ax=ax[col]))
+                                        ax=ax[col], **kwargs))
     return axes
 
 
@@ -349,23 +355,24 @@ def MAD_filter(df, window=20, threshold=3, imputation="max", value=0, axis=0):
 
     """
     # DataFrame to store filtered data
-    result = df.copy()
     if not isinstance(df, pd.DataFrame):
         result = pd.DataFrame(df)
+    else:
+        result = df.copy(deep=True)
     data_median = result.rolling(window=window,
                                  min_periods=1,
                                  center=True,
                                  closed='both',
                                  axis=axis).apply(np.median,
                                                   engine="numba",
-                                                  raw=True)
+                                                  raw=True).fillna(method='ffill')
     data_MAD = result.rolling(window=window,
                               min_periods=1,
                               center=True,
                               closed='both',
                               axis=axis).apply(mad_std,
                                                engine="numba",
-                                               raw=True)
+                                               raw=True).fillna(method='bfill').fillna(method='ffill')
 
     mask = np.abs(result - data_median) >= threshold*data_MAD
 
@@ -399,14 +406,15 @@ def RFI_filter(df, window=10, threshold=3.5, imputation="median", axis=0):
         DataFrame: Same shape as entry.
 
     """
+    df = df.copy(deep=True)
     df = df.T
-    smooth_spectrum, _ = MAD_filter(df.median(axis=1),
+    smooth_spectrum, _ = MAD_filter(df.median(axis=1).copy(),
                                     window=window,
                                     threshold=1,
                                     imputation="median",
                                     axis=axis)
     spectrum = (df/smooth_spectrum.values)
-    filt_spectrum, mask = MAD_filter(spectrum,
+    filt_spectrum, mask = MAD_filter(spectrum.copy(),
                                      window=window,
                                      threshold=threshold,
                                      imputation=imputation,
@@ -414,7 +422,7 @@ def RFI_filter(df, window=10, threshold=3.5, imputation="median", axis=0):
     filt_spectrum = filt_spectrum.T
     spectrum = spectrum
     mask = mask.T
-    return filt_spectrum, spectrum, mask
+    return filt_spectrum, spectrum.T, mask
 
 
 def I_metric(dfF, dfU, axis=0):

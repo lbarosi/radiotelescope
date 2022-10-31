@@ -13,7 +13,7 @@ import time
 from astropy import units as u
 import pytz
 import radiotelescope
-import radiotelescope.GNURadio.GNUController as GNURADIO
+
 
 # Definindo Instrumento
 lat = -7.211637 * u.deg;
