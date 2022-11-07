@@ -18,6 +18,8 @@ from numba import jit
 import numpy as np
 import pandas as pd
 import scipy as sp
+from scipy.constants import c
+from scipy.constants import k
 import radiotelescope.observations.sky as sky
 # Preparando log -----
 logger = logging.getLogger(__name__)
@@ -154,7 +156,7 @@ class Observations:
             return None
         return self
 
-    def calibrate(self, data=None, T_rx=None, TEMP=300, T_HOT=300, T_WARM=50):
+    def calibrate(self, data=None, T_rx=None, TEMP=300, T_HOT=300, T_WARM=50, scale=1, flux=True, gain=1):
         if T_rx is None:
             # carrega T_hot
             df_hot = self.backend._get_filenames(extension="fit",
@@ -175,7 +177,7 @@ class Observations:
                                              2,
                                              mode="nearest")
             # temperatura do receptor
-            Yc = 10**((V_hot-V_warm)/10)
+            Yc = 10**((V_hot-V_warm) / 10 / scale)
             T_rx = (T_HOT - Yc * T_WARM)/(Yc-1)
         # carrega T_cold
         df_cold = self.backend._get_filenames(extension="fit",
@@ -187,10 +189,23 @@ class Observations:
                                          2,
                                          mode="nearest")
         # Calibrando
-        Ys = 10**((data - V_cold)/10)
+        Ys = 10**((data - V_cold) / 10 / scale)
         T_A = T_rx * (Ys - 1) + Ys * TEMP
-        # Verifica se calibração é muito antiga
-        return T_A, T_rx
+        result = T_A
+        if flux:
+            # freqs in fits file are in MHz, need to use Hz here.
+            freqs = np.asarray(data.columns)
+            bandwidth = (freqs[-1] - freqs[0]) * 1e6
+            integration_time = np.abs((data.index[0] -
+                                       data.index[1]).total_seconds())
+            Aeff = gain * pow(c/(freqs * 1e6), 2) / (4. * np.pi)
+            # power in mW
+            S_flux = 1000 * (2. * k / np.sqrt(bandwidth * integration_time)) *\
+                T_A / Aeff
+            # power in dBm
+            SdB = 10.0 * np.log10(S_flux)
+            result = SdB
+        return result, T_rx
 
     def plot_waterfall(self, df=None, freqs=None, duration=None, sampling=None, colorbar=True, **kwargs):
         freqs = freqs
@@ -365,14 +380,15 @@ def MAD_filter(df, window=20, threshold=3, imputation="max", value=0, axis=0):
                                  closed='both',
                                  axis=axis).apply(np.median,
                                                   engine="numba",
-                                                  raw=True).fillna(method='ffill')
+                                                  raw=True).\
+        fillna(method='ffill')
     data_MAD = result.rolling(window=window,
                               min_periods=1,
                               center=True,
                               closed='both',
-                              axis=axis).apply(mad_std,
-                                               engine="numba",
-                                               raw=True).fillna(method='bfill').fillna(method='ffill')
+                              axis=axis).\
+        apply(mad_std, engine="numba", raw=True).fillna(method='bfill').\
+        fillna(method='ffill')
 
     mask = np.abs(result - data_median) >= threshold*data_MAD
 
