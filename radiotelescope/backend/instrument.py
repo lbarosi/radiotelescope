@@ -11,7 +11,7 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation
 from pytz import timezone
 # Special packages
-from skyfield  import api
+from skyfield import api
 from skyfield.api import load
 from skyfield.api import Loader
 #------------------

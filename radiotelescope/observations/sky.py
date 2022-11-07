@@ -6,32 +6,20 @@ PACKAGE: Radiotelecope
 AUTHOR: Luciano Barosi
 DATE: 07.05.2022
 """
-# General Imports
 import numpy as np
 import pandas as pd
 import itertools
-# Plotting
 import astropy.coordinates as coord
 import astropy.units as u
 from astropy.wcs import WCS
 from astropy.time import Time, TimeDelta
-# Catalogs
 from astroquery.simbad import Simbad
 from astroquery.vizier import Vizier
 import dask.array as da
-import dask.dataframe as dd
-from matplotlib.colorbar import Colorbar
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
-import matplotlib.colors as colors
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
-from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
-                               AutoMinorLocator)
-# Date and Time
-from datetime import datetime
-from pytz import timezone
-# Special packages
 from skyfield import api
 from skyfield.api import Loader
 
@@ -72,6 +60,7 @@ WCS_MOL.wcs.crpix = [0., 0.]
 WCS_MOL.wcs.cdelt = [1, 1]
 WCS_MOL.wcs.crval = [180, 0]
 WCS_MOL.wcs.ctype = ["RA---MOL", "DEC--MOL"]
+
 
 class Sky:
 
@@ -136,27 +125,35 @@ class Sky:
         """Calculate bounding box for astropy coord.Skycord object in sky coordinates."""
         skycoords = self.pointings
         fwhm = self.instrument.fwhm
-        bbox_center = coord.Angle(np.ceil(self.pointings[self.timevector.shape[0]//2].ra.hour)*15, unit = "deg").wrap_at(180*u.deg)
+        bbox_center = coord.Angle(np.ceil(
+            self.pointings[self.timevector.shape[0]//2].ra.hour)*15,
+            unit="deg").wrap_at(180*u.deg)
         if self.duration > 23 * u.h:
             ra_min = 0 * u.deg
             ra_max = 359.99 * u.deg
         else:
             delta = (self.duration.to(u.h).value * 15/2)*u.deg
-            ra_min = coord.Angle(bbox_center - delta - fwhm*u.deg).wrap_at(180*u.deg).degree
+            ra_min = coord.Angle(bbox_center - delta - fwhm*u.deg).\
+                wrap_at(180*u.deg).degree
             ra_max = coord.Angle(bbox_center + delta).wrap_at(180*u.deg).degree
         dec_min = skycoords.dec.degree.min() - fwhm/2
         dec_max = skycoords.dec.degree.max() + fwhm/2
-        top_right = coord.SkyCoord(ra = ra_max, dec = dec_max, unit = 'deg', frame = "icrs")
-        bottom_left = coord.SkyCoord(ra = ra_min, dec = dec_min, unit = 'deg', frame = "icrs")
+        top_right = coord.SkyCoord(ra=ra_max, dec=dec_max, unit='deg',
+                                   frame="icrs")
+        bottom_left = coord.SkyCoord(ra=ra_min, dec=dec_min, unit='deg',
+                                     frame="icrs")
         corners = [bottom_left, top_right]
         return corners
 
-    def _make_axes(self, ra_lim = None, dec_lim = None,  galactic = None, projection = "CAR"):
+    def _make_axes(self, ra_lim=None, dec_lim=None,  galactic=None,
+                   projection="CAR"):
         """Determine world coordinate axes to use in plot_pointings and set some other nice features."""
         # define bounding box in celestial coordinates
         bbox = self._celestial_bbox()
         # define central hourangle
-        bbox_center = coord.Angle(np.ceil(self.pointings[self.timevector.shape[0]//2].ra.hour)*15, unit = "deg").wrap_at(180*u.deg).degree
+        bbox_center = coord.Angle(np.ceil(self.pointings[
+            self.timevector.shape[0]//2].ra.hour)*15,
+            unit="deg").wrap_at(180*u.deg).degree
         # define world coordinate system
         astro = WCS(naxis=2)
         astro.wcs.crpix = [0., 0.]
@@ -172,14 +169,18 @@ class Sky:
         yy_inf = ymin
         if ra_lim is not None:
             if dec_lim is not None:
-                bottom_left  = coord.SkyCoord(ra = min(ra_lim), dec = min(dec_lim), frame = "icrs")
-                top_right = coord.SkyCoord(ra = max(ra_lim), dec = max(dec_lim), frame = "icrs")
+                bottom_left = coord.SkyCoord(ra=min(ra_lim),
+                                             dec=min(dec_lim),
+                                             frame="icrs")
+                top_right = coord.SkyCoord(ra=max(ra_lim),
+                                           dec=max(dec_lim),
+                                           frame="icrs")
                 xmin, ymin = astro.world_to_pixel(bottom_left)
                 xmax, ymax = astro.world_to_pixel(top_right)
             else:
                 raise ValueError("Both sky (RA, DEC) limits should be set")
         # Create axes
-        fig = plt.figure(figsize=(16,9))
+        fig = plt.figure(figsize=(16, 9))
         ax = fig.add_subplot(111, projection=astro)
         lon = ax.coords['RA']
         lat = ax.coords['DEC']
@@ -196,18 +197,18 @@ class Sky:
         ax.set_ylim(ymin, ymax)
         ax.set_xlim(xmin, xmax)
         ax.invert_xaxis()
-        ax.coords.grid(color='lightgray', alpha = 0.7, linestyle='solid')
-        ax.axhline(yy_sup, color = "skyblue", linewidth = 3)
-        ax.axhline(yy_inf, color = "skyblue", linewidth = 3)
+        ax.coords.grid(color='lightgray', alpha=0.7, linestyle='solid')
+        ax.axhline(yy_sup, color="skyblue", linewidth=3)
+        ax.axhline(yy_inf, color="skyblue", linewidth=3)
         if galactic:
-            overlay = ax.get_coords_overlay('galactic');
-            overlay.grid(alpha=0.5, linestyle='solid', color='violet');
-            overlay[0].set_axislabel('latitude galáctica l');
-            overlay[1].set_axislabel('longitude galactica b');
-            overlay[0].set_ticks(spacing=15 * u.deg);
-            overlay[1].set_ticks(spacing=15 * u.deg);
-            overlay[0].set_ticklabel(color = "violet")
-            overlay[1].set_ticklabel(color = "violet")
+            overlay = ax.get_coords_overlay('galactic')
+            overlay.grid(alpha=0.5, linestyle='solid', color='violet')
+            overlay[0].set_axislabel('latitude galáctica l')
+            overlay[1].set_axislabel('longitude galactica b')
+            overlay[0].set_ticks(spacing=15 * u.deg)
+            overlay[1].set_ticks(spacing=15 * u.deg)
+            overlay[0].set_ticklabel(color="violet")
+            overlay[1].set_ticklabel(color="violet")
         return ax
 
     def _pixel_bbox(self, WCS, coords):
@@ -225,23 +226,26 @@ class Sky:
 
     def beam_on_sky(self):
         """Collect all celestials in one dataframe."""
-        pulsares_csv = obs.load_pulsares()
-        radiosources_csv = obs.load_radiosources()
-        nvss_csv = obs.load_nvss_catalog()
+        pulsares_csv = load_pulsares()
+        radiosources_csv = load_radiosources()
+        nvss_csv = load_nvss_catalog()
         df_celestials = pd.concat(
-            [pulsares_csv.query("DEC >-20 & DEC < 10 & S1400>10")[["PSRJ", "RA", "DEC"]].rename(columns = {"PSRJ": "NAME"}),
-             nvss_csv.query("DEC >-20 & DEC < 10 & S1400>10000")[["NVSS", "RA", "DEC"]].rename(columns = {"NVSS": "NAME"}),
-             radiosources_csv[["SOURCE", "RA", "DEC"]].rename(columns = {"SOURCE": "NAME"})]
-        )
-        df = self.get_star_cone(objects = df_celestials)
+            [pulsares_csv.query("DEC >-20 & DEC < 10 & S1400>10")
+                [["PSRJ", "RA", "DEC"]].rename(columns={"PSRJ": "NAME"}),
+                nvss_csv.query("DEC >-20 & DEC < 10 & S1400>10000")
+                [["NVSS", "RA", "DEC"]].rename(columns={"NVSS": "NAME"}),
+                radiosources_csv[["SOURCE", "RA", "DEC"]].
+                rename(columns={"SOURCE": "NAME"})])
+        df = self.get_star_cone(objects=df_celestials)
         df_local_objects = self.get_local_objects_cone()
         df_gnss_satellites = self.get_satellites()
         df = pd.concat([df, df_local_objects, df_gnss_satellites])
-        df["TIME"] = pd.to_datetime(Time(df.TIME.values, format='jd', scale = "tai").to_datetime())
+        df["TIME"] = pd.to_datetime(Time(df.TIME.values,
+                                         format='jd',
+                                         scale="tai").to_datetime())
         df.set_index('TIME', inplace=True)
         df = df.sort_index()
-        df.reset_index(inplace = True)
-        df_obs = df
+        df.reset_index(inplace=True)
         return df
 
     def make_timevector(self, duration=None, delta=1 * u.h, inplace=True):
@@ -260,9 +264,9 @@ class Sky:
             duration = self.duration
         delta = delta.to(u.s).value
         steps = duration.to(u.s).value / delta
-        vec = np.arange(steps)
         # Astropy timevector is fast to create.
-        timelist = Time(self.t_start, scale='utc') + np.arange(steps)*TimeDelta(delta, format='sec', scale='tai')
+        timelist = Time(self.t_start, scale='utc') +\
+            np.arange(steps)*TimeDelta(delta, format='sec', scale='tai')
         # Convert to skyfield timescale for later use.
         timevector = self._ts.from_astropy(timelist)
         if inplace:
@@ -385,6 +389,7 @@ class Sky:
 
         return df
 
+
     def beam_on_sky(self):
         """Collect all celestials in one dataframe."""
         pulsares_csv = load_pulsares()
@@ -401,7 +406,6 @@ class Sky:
         )
         df = self.get_star_cone(objects=df_celestials)
         df_local_objects = self.get_local_objects_cone()
-        FWHM = self.instrument.fwhm
         df_gnss_satellites = self.get_satellites().query("ANGLE < @FWHM")
         df = pd.concat([df, df_local_objects, df_gnss_satellites])
         df["TIME"] = pd.to_datetime(Time(df.TIME.values, format='jd',
@@ -499,7 +503,7 @@ class Sky:
             df = pd.DataFrame()
         return df
 
-    def make_pointings(self, timevector=None, inplace = True, *args, **kwargs):
+    def make_pointings(self, timevector=None, inplace=True, *args, **kwargs):
         """Determine property pointings as a coord.Skycoord object with RA DEC coordinates for the observation times.
 
         Args:
@@ -515,8 +519,12 @@ class Sky:
             if timevector is None:
                 timevector = self.timevector
             observer = self.instrument.observatory
-            ra, dec, _ = observer.at(timevector).from_altaz(alt_degrees=self.instrument.Alt, az_degrees=self.instrument.Az).radec(self._ts.J2000)
-            pointings_sky = coord.SkyCoord(ra.hours, dec.degrees, unit=(u.hourangle, u.deg), frame='icrs', equinox='J2000')
+            ra, dec, _ = observer.at(timevector).from_altaz(
+                alt_degrees=self.instrument.Alt,
+                az_degrees=self.instrument.Az).radec(self._ts.J2000)
+            pointings_sky = coord.SkyCoord(ra.hours, dec.degrees,
+                                           unit=(u.hourangle, u.deg),
+                                           frame='icrs', equinox='J2000')
             self.pointings = pointings_sky
         else:
             print("Instrument not set")
@@ -524,90 +532,112 @@ class Sky:
             return None
         return self
 
-    def make_pointings_df(self, interval = None, utc = False):
+    def make_pointings_df(self, interval=None, utc=False):
         """Construct dataframe with times and pointings in human readable format."""
         ra = self.pointings.ra.degree
-        dec  = self.pointings.dec.degree
+        dec = self.pointings.dec.degree
         name = [self.instrument.name] * len(self.timevector)
         if utc:
             time = pd.to_datetime(self.timevector.utc_datetime())
         else:
-            time = pd.to_datetime(self.timevector.utc_datetime(), utc=True).tz_convert(self.instrument.timezone)
-        df = pd.DataFrame({"RA":ra,"DEC":dec, "NAME":name}, index = time)
+            time = pd.to_datetime(self.timevector.utc_datetime(),
+                                  utc=True).\
+                                    tz_convert(self.instrument.timezone)
+        df = pd.DataFrame({"RA": ra, "DEC": dec, "NAME": name}, index=time)
         if interval is not None:
             df = df.asfreq(freq=interval, method='bfill')
         return df
 
-    def plot_pointings(self, timestamps = True, circles = True, utc = False, interval = "1h", ra_lim = None, dec_lim = None, h_offset = 7, v_offset = -10, legend_offset = -.1, galactic = True, wcs = "CAR"):
+    def plot_pointings(self, timestamps=True, circles=True, utc=False,
+                       interval="1h", ra_lim=None, dec_lim=None,
+                       h_offset=7, v_offset=-10, legend_offset=-.1,
+                       galactic=True, wcs="CAR"):
         """Set the stage for observations."""
-        if self.duration < 24 *u.h:
-            sky = self.make_pointings_df(interval = interval).reset_index().rename(columns = {"index": "TIME"})
+        if self.duration < 24 * u.h:
+            sky = self.make_pointings_df(interval=interval).\
+                reset_index().rename(columns={"index": "TIME"})
             fwhm = self.instrument.fwhm
             # create world coordinate axes
-            ax =  self._make_axes(ra_lim = ra_lim, dec_lim = dec_lim, galactic = galactic, projection = wcs)
+            ax = self._make_axes(ra_lim=ra_lim, dec_lim=dec_lim,
+                                 galactic=galactic, projection=wcs)
             # plot artists
             for ii, row in sky.iterrows():
                 if timestamps:
                     if utc:
-                        time_text = row.TIME.strftime("%H:%M")  + "-UT"
+                        time_text = row.TIME.strftime("%H:%M") + "-UT"
                     else:
-                        time_text = row.TIME.astimezone(self.instrument.timezone).strftime("%H:%M") + "-local"
-                    ax.text(row.RA + h_offset, row.DEC + v_offset, time_text, transform=ax.get_transform("world"), color = "sienna")
+                        time_text = row.TIME.astimezone(
+                            self.instrument.timezone).\
+                                strftime("%H:%M") + "-local"
+                    ax.text(row.RA + h_offset, row.DEC + v_offset,
+                            time_text, transform=ax.get_transform("world"),
+                            color="sienna")
                 if circles:
-                    c = Circle((row.RA, row.DEC), fwhm/2, transform=ax.get_transform('world'), edgecolor="sienna", facecolor="None")
+                    c = Circle((row.RA, row.DEC), fwhm/2,
+                               transform=ax.get_transform('world'),
+                               edgecolor="sienna", facecolor="None")
                     ax.add_patch(c)
             # show pointings as red points.
-            ax.scatter(x = sky.RA, y = sky.DEC, marker = "+", color = "red", transform=ax.get_transform('world'), label="pointing")
+            ax.scatter(x=sky.RA, y=sky.DEC, marker="+", color="red",
+                       transform=ax.get_transform('world'), label="pointing")
             # make room for large legend.
-            ax.legend(loc='lower center', bbox_to_anchor=(0.5, legend_offset), ncol=7, fancybox=True, shadow=True)
+            ax.legend(loc='lower center',
+                      bbox_to_anchor=(0.5, legend_offset),
+                      ncol=7, fancybox=True, shadow=True)
             artist = ax
         else:
             print("Plotting observation longer than 24hs in the sky does not yield good results. Try another approach.")
             return None
         return artist
 
-    def plot_sky(self, objects = None, markersize = 15):
+    def plot_sky(self, objects=None, markersize=15):
         """Plot AtzAz sky."""
         if objects is None:
             objects = self.get_all_beam()
-            objects = self.get_altaz_from_radec(objects = objects)
-            objects["TIME"] = pd.to_datetime(objects.TIME.values, unit = "D", origin = "julian")
+            objects = self.get_altaz_from_radec(objects=objects)
+            objects["TIME"] = pd.to_datetime(objects.TIME.values,
+                                             unit="D", origin="julian")
         else:
             objects = objects
-        objects["AZwrap"] = coord.Angle(objects.AZ, unit = "deg").wrap_at(180*u.deg).degree
+        objects["AZwrap"] = coord.Angle(objects.AZ,
+                                        unit="deg").wrap_at(180*u.deg).degree
         begin = objects.TIME.min().strftime("%D - %H:%M")
         end = objects.TIME.max().strftime("%H:%M")
-        fig, ax = plt.subplots(figsize = (16,9))
+        fig, ax = plt.subplots(figsize=(16, 9))
         for celestial in objects.NAME.unique():
             df = objects[objects.NAME == celestial]
-            ax.scatter(x = df.AZwrap, y = df.ALT, label = celestial, s = markersize, marker = "*");
+            ax.scatter(x=df.AZwrap, y=df.ALT, label=celestial,
+                       s=markersize, marker="*")
         ax.grid()
         ax.set_xlim(-90, 90)
-        ax.set_ylim(60,90)
+        ax.set_ylim(60, 90)
         ax.set_xlabel("Azimute Az")
         ax.set_ylabel("Altitude Alt")
         ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=7,
-                  title = "Observation started at {} and finished at {}".format(begin, end) )
+                  title="Observation started at {} and finished at {}".
+                  format(begin, end))
         return ax
 
     def plot_timeseries(self, df_data, interval="1h"):
         """Plot waterfall and upper panel with celestials."""
-        df_sky = self.make_pointings_df(interval=interval).\
-            reset_index().rename(columns={"index": "TIME"})
+        df_sky = self.get_all_beam()
+        df_sky["TIME"] = pd.to_datetime(df_sky.TIME.values,
+                                        unit="D", origin="julian")
+        df_sky["TIME"] = df_sky["TIME"].dt.tz_localize(
+            self.instrument.timezone)
         df_fit = df_data
         df_fit = df_data.reset_index()
-        df_fit["index"] = df_fit["index"].dt.tz_localize(self.instrument.timezone)
+        df_fit["index"] = df_fit["index"].dt.\
+            tz_localize(self.instrument.timezone)
         df_fit = df_fit.set_index("index")
         # Set up the axes with gridspec
         freqs = df_fit.columns
         begin = df_fit.index[0]
         end = df_fit.index[-1]
-        mask = (df_sky["TIME"] > begin) & (df_sky["TIME"] < end)
-        df_sky_filt = df_sky.loc[mask]
         ymin = self.pointings.dec.min().degree - self.instrument.fwhm
         ymax = self.pointings.dec.max().degree + self.instrument.fwhm
-        fmt_major = mdates.MinuteLocator(interval = 30)
-        fmt_minor = mdates.MinuteLocator(interval = 15)
+        fmt_major = mdates.MinuteLocator(interval=30)
+        fmt_minor = mdates.MinuteLocator(interval=15)
         # Set up the axes with gridspec
         mt = mdates.date2num((begin, end))
         hfmt = mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S')
@@ -615,21 +645,27 @@ class Sky:
         fig = plt.figure(figsize=(16, 8))
         grid = plt.GridSpec(5, 8, hspace=0.0, wspace=0.1)
         spectrum_ax = fig.add_subplot(grid[1:, :-1])
-        sky_ax = fig.add_subplot(grid[0, :-1], xticklabels=[], sharex=spectrum_ax)
+        sky_ax = fig.add_subplot(grid[0, :-1], xticklabels=[],
+                                 sharex=spectrum_ax)
         ver_fig = fig.add_subplot(grid[1:, -1], sharey=spectrum_ax)
         # waterfall.
-        spectrum_ax.imshow(df_fit.T, aspect='auto', extent = [ mt[0], mt[-1], freqs[-1], freqs[0]],
-          cmap = cm.inferno)
+        spectrum_ax.imshow(df_fit.T, aspect='auto',
+                           extent=[mt[0], mt[-1], freqs[-1], freqs[0]],
+                           cmap=cm.inferno)
         spectrum_ax.set_ylabel("Frequencies (MHz)")
         spectrum_ax.set_xlabel("Time (UT)")
         spectrum_ax.minorticks_on()
         spectrum_ax.xaxis.set_major_formatter(hfmt)
         spectrum_ax.xaxis.set_minor_locator(fmt_minor)
         spectrum_ax.xaxis.set_tick_params(which='minor', bottom=True)
-
-        for celeste in df_sky_filt.NAME.unique():
-            sky = df_sky_filt[df_sky_filt.NAME == celeste]
-            sky_ax.scatter(x = sky.TIME, y = sky.DEC, label = celeste, marker = "*")
+        # SKY
+        if not df_sky.empty:
+            mask = (df_sky["TIME"] > begin) & (df_sky["TIME"] < end)
+            df_sky_filt = df_sky.loc[mask]
+            for celeste in df_sky_filt.NAME.unique():
+                sky = df_sky_filt[df_sky_filt.NAME == celeste]
+                sky_ax.scatter(x=sky.TIME, y=sky.DEC, label=celeste,
+                               marker="*")
         sky_ax.axhline(ymin, color="gold", linewidth=2)
         sky_ax.axhline(ymax, color="gold", linewidth=2)
         sky_ax.set_ylabel("Declination")
@@ -637,11 +673,12 @@ class Sky:
         sky_ax.xaxis.set_minor_locator(fmt_minor)
         sky_ax.xaxis.set_major_formatter(hfmt)
         sky_ax.grid()
-        sky_ax.legend(loc='upper center', bbox_to_anchor=(0.5, 2.0), ncol=7, fancybox=True, shadow=True)
-
+        sky_ax.legend(loc='upper center', bbox_to_anchor=(0.5, 2.0),
+                      ncol=7, fancybox=True, shadow=True)
+        # Vertical Plot
         spectrum = df_fit.max(axis=0)
         # plot averaged spectrum in the vertical.
-        ver_fig.plot(spectrum, freqs, c = 'red')
+        ver_fig.plot(spectrum, freqs, c='red')
         ver_fig.grid()
         ver_fig.yaxis.tick_right()
         ver_fig.yaxis.set_label_position('right')
@@ -803,6 +840,7 @@ def get_galactic_equator(size=720):
     gal_plane = coord.SkyCoord(ll, bb, unit=u.deg, frame="galactic")
     return gal_plane
 
+
 def plot_df(df, **kwargs):
     """Given a dataframe with RA and DEC information, plots the data with options given..
 
@@ -821,7 +859,8 @@ def plot_df(df, **kwargs):
     ax = kwargs.pop("ax", None)
     h_offset = kwargs.pop("h_offset", 0)
     v_offset = kwargs.pop("v_offset", 0)
-    coords = coord.SkyCoord(ra = df.RA, dec=df.DEC, unit="deg", frame = "icrs")
+    coords = coord.SkyCoord(ra=df.RA, dec=df.DEC, unit="deg",
+                            frame="icrs")
 
     if "texts" in kwargs.keys():
         texts = df[kwargs.pop("texts")]
@@ -842,24 +881,28 @@ def plot_df(df, **kwargs):
         lon.set_ticklabel_position('bt')
         lat.set_ticks_position('lr')
         lat.set_ticklabel_position('lr')
-        ax.set_ylim([-25,10])
-        ax.set_xlim([-180,180])
+        ax.set_ylim([-25, 10])
+        ax.set_xlim([-180, 180])
         ax.invert_xaxis()
-        ax.coords.grid(color='lightgray', alpha = 0.7, linestyle='solid')
+        ax.coords.grid(color='lightgray', alpha=0.7, linestyle='solid')
     if "group" in kwargs.keys():
         group = kwargs.pop('group')
         values = df[group].unique()
         for item in values:
-            df_filtered = df[df[group]==item]
-            coords = coord.SkyCoord(ra = df_filtered.RA, dec=df_filtered.DEC, unit="deg", frame = "icrs")
-            ax.scatter(x = coords.ra, y = coords.dec, **kwargs, transform=ax.get_transform('world'), label = item)
+            df_filtered = df[df[group] == item]
+            coords = coord.SkyCoord(ra=df_filtered.RA, dec=df_filtered.DEC,
+                                    unit="deg", frame="icrs")
+            ax.scatter(x=coords.ra, y=coords.dec, **kwargs,
+                       transform=ax.get_transform('world'), label=item)
     else:
-        ax.scatter(x = coords.ra, y = coords.dec, **kwargs, transform=ax.get_transform('world'))
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=7, fancybox=True, shadow=True)
+        ax.scatter(x=coords.ra, y=coords.dec, **kwargs,
+                   transform=ax.get_transform('world'))
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=7,
+              fancybox=True, shadow=True)
     if texts is not None:
         for ii, item in enumerate(coords):
             #matplotlib text shoulb be one by one
-            ax.text(item.ra.degree + h_offset, item.dec.degree + v_offset, texts.iloc[ii],
-                    transform=ax.get_transform('world'))
+            ax.text(item.ra.degree + h_offset, item.dec.degree + v_offset,
+                    texts.iloc[ii], transform=ax.get_transform('world'))
     artist = ax
     return artist
