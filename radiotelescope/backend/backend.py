@@ -193,9 +193,11 @@ class Backend(ABC):
         if mode is not None:
             df = df[df["mode"] == mode]
         # Índice do dataframe é o tempo.
-        # É registrada informação de horário UTC.
+        # É registrada informação de horário local.
         try:
-            df['timestamps'] = pd.to_datetime(df['timestamps'], format="%Y%m%dT%H%M%S", utc=True)
+            df['timestamps'] = pd.to_datetime(df['timestamps'], format="%Y%m%dT%H%M%S", utc=False).dt.tz_localize(None)
+            if self.instrument.timezone is not None:
+                df["timestamps"] = df["timestamps"].dt.tz_localize(None).dt.tz_localize(self.instrument.timezone)
             # Ordenamento temporal é fundamental para efetuar as filtragens.
             self.filenames = df.set_index('timestamps').sort_index()
         except (TypeError, ValueError):

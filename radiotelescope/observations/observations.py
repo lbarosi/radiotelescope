@@ -103,7 +103,7 @@ class Observations:
         self.t_end = self.t_start + self._duration
         return self
 
-    def filter_data(self, df, begin=None, freqs=None, duration=None,
+    def filter_data(self, data, begin=None, freqs=None, duration=None,
                     sampling=None):
         """Filtra o dataframe com os parâmetros chamados.
 
@@ -118,6 +118,7 @@ class Observations:
             pd.DataFrame: dados filtrados.
 
         """
+        df = data.copy()
         if begin is None:
             begin = df.index[0]
         else:
@@ -136,10 +137,10 @@ class Observations:
                 end = df.index[-1]
         mask = df.columns.where((df.columns >= freqmin) &
                                 (df.columns < freqmax)).dropna()
-        df = df.loc[begin:end][mask]
+        result = df.loc[begin:end][mask]
         if sampling is not None:
-            df = df.resample(sampling).mean()
-        return df
+            result = result.resample(sampling).mean()
+        return result
 
     def load_observation(self, mode="59", extension="fit"):
         """Load observations from local files."""
@@ -150,6 +151,10 @@ class Observations:
         try:
             df = self.backend.load_measurement(filenames=filenames, mode=mode,
                                                extension=extension)
+            # COnvertendo timezone aware
+            df = df.reset_index()
+            df["index"] = df["index"].dt.tz_localize(self.backend.instrument.timezone)
+            df = df.set_index("index")
             self.data = df
         except ValueError:
             print("No data found.")
@@ -218,8 +223,10 @@ class Observations:
                                   duration=duration)
         # limits
         freqs = df.columns.astype("float")
-        begin = df.index[0]
-        end = df.index[-1]
+        # datas sem fuso.
+        datas = df.index
+        begin = datas[0]
+        end = datas[-1]
         mt = mdates.date2num((begin, end))
         hfmt = mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S')
         fmt_minor = mdates.MinuteLocator(interval=15)
