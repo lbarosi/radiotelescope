@@ -291,7 +291,7 @@ class Sky:
         celestial = api.Star(ra_hours=ra, dec_degrees=dec)
         pos = observer.at(timestamp).observe(celestial)
         alt, az, _ = pos.apparent().altaz()
-        return obj_type, name, timestamp.tai, alt.degrees, az.degrees
+        return obj_type, name, timestamp.utc_strftime(), alt.degrees, az.degrees
 
     def get_altaz_from_radec(self, observer=None, objects=None):
         df = objects.apply(lambda row:
@@ -328,7 +328,7 @@ class Sky:
             separation_from(pos)
         RA = coord.Longitude(ra._degrees, u.deg,
                              wrap_angle=180*u.deg).to(u.deg).value
-        sats = da.from_array([timevector.tai,
+        sats = da.from_array([timevector.utc_strftime(),
                               RA,
                               dec.degrees,
                               cone.degrees,
@@ -343,7 +343,7 @@ class Sky:
             separation_from(pos)
         RA = coord.Longitude(ra._degrees, u.deg,
                              wrap_angle=180*u.deg).to(u.deg).value
-        sats = pd.DataFrame({"TIME": timevector.tai,
+        sats = pd.DataFrame({"TIME": timevector.utc_strftime(),
                              "RA": RA,
                              "DEC": dec.degrees,
                              "ANGLE": cone.degrees,
@@ -381,7 +381,7 @@ class Sky:
             objects.append(sat_obj)
 
         df = pd.concat(objects)
-        df['TIME'] = df['TIME'].astype(float)
+        #df['TIME'] = df['TIME'].astype(float)
         df['RA'] = df['RA'].astype(float)
         df['DEC'] = df['DEC'].astype(float)
         df['ANGLE'] = df['ANGLE'].astype(float)
@@ -390,29 +390,36 @@ class Sky:
         return df
 
 
-    def beam_on_sky(self):
-        """Collect all celestials in one dataframe."""
-        pulsares_csv = load_pulsares()
-        radiosources_csv = load_radiosources()
-        nvss_csv = load_nvss_catalog()
-        df_celestials = pd.concat(
-            [pulsares_csv.query("DEC >-20 & DEC < 10 & S1400>10")
-                [["PSRJ", "RA", "DEC"]].rename(columns={"PSRJ": "NAME"}),
-                nvss_csv.query("DEC >-20 & DEC < 10 & S1400>10000")
-                [["NVSS", "RA", "DEC"]].rename(columns={"NVSS": "NAME"}),
-                radiosources_csv[["SOURCE",
-                                  "RA", "DEC"]].
-                rename(columns={"SOURCE": "NAME"})]
-        )
-        df = self.get_star_cone(objects=df_celestials)
-        df_local_objects = self.get_local_objects_cone()
-        df_gnss_satellites = self.get_satellites().query("ANGLE < @FWHM")
-        df = pd.concat([df, df_local_objects, df_gnss_satellites])
-        df["TIME"] = pd.to_datetime(Time(df.TIME.values, format='jd',
-                                    scale="tai").to_datetime())
-        df.set_index('TIME', inplace=True)
-        df = df.sort_index()
-        df.reset_index(inplace=True)
+    def get_local_objects(self, objects=None, CONE=True):
+        """Get positions of local objects during observation."""
+        # --------------------
+        # Generate positions in dataframe.
+        # --------------------
+        if self.instrument is not None:
+            timevector = self.timevector
+            fwhm = self.instrument.fwhm
+            observer = self._earth + self.instrument.observatory
+            if objects is None:
+                objects = self.local_objects
+            object_list = []
+            for sky_object in objects:
+                pos = observer.at(timevector).observe(self._eph[sky_object])
+                ra, dec, dist = pos.radec()
+                cone = observer.at(timevector).from_altaz(
+                    alt_degrees=self.instrument.Alt,
+                    az_degrees=self.instrument.Az).separation_from(pos)
+                df = pd.DataFrame(zip(timevector.utc_strftime(), ra._degrees,
+                                      dec.degrees, cone.degrees, dist.km),
+                                  columns=['TIME', 'RA', 'DEC', 'ANGLE',
+                                           'DISTANCE'])
+                df['NAME'] = [sky_object.split(" ")[0]] * len(timevector)
+                object_list.append(df)
+            objects_df = pd.concat(object_list)
+            if CONE:
+                df = objects_df[objects_df.ANGLE < fwhm/2]
+        else:
+            print("Instrument not set")
+            df = None
         return df
 
     def get_all_beam(self, query_string_nvss="S1400>10000",
@@ -455,7 +462,7 @@ class Sky:
                 cone = observer.at(timevector).from_altaz(
                     alt_degrees=self.instrument.Alt,
                     az_degrees=self.instrument.Az).separation_from(pos)
-                df = pd.DataFrame(zip(timevector.tai, ra._degrees,
+                df = pd.DataFrame(zip(timevector.utc_strftime(), ra._degrees,
                                       dec.degrees, cone.degrees, dist.km),
                                   columns=['TIME', 'RA', 'DEC', 'ANGLE',
                                            'DISTANCE'])
@@ -490,7 +497,7 @@ class Sky:
                 cone = observer.at(timevector).from_altaz(
                     alt_degrees=self.instrument.Alt,
                     az_degrees=self.instrument.Az).separation_from(pos)
-                df = pd.DataFrame(zip(timevector.tai, ra._degrees,
+                df = pd.DataFrame(zip(timevector.utc_strftime(), ra._degrees,
                                       dec.degrees, cone.degrees, dist.km),
                                   columns=['TIME', 'RA', 'DEC', 'ANGLE',
                                            'DISTANCE'])
@@ -621,19 +628,20 @@ class Sky:
     def plot_timeseries(self, df_data, interval="1h"):
         """Plot waterfall and upper panel with celestials."""
         df_sky = self.get_all_beam()
-        df_sky["TIME"] = pd.to_datetime(df_sky.TIME.values,
-                                        unit="D", origin="julian")
-        df_sky["TIME"] = df_sky["TIME"].dt.tz_localize(
-            self.instrument.timezone)
+        #df_sky["TIME"] = pd.to_datetime(df_sky.TIME).dt.tz_convert(timezone)
+        df_sky["TIME"] = pd.to_datetime(df_sky.TIME)
         df_fit = df_data
-        df_fit = df_data.reset_index()
-        df_fit["index"] = df_fit["index"].dt.\
-            tz_localize(self.instrument.timezone)
-        df_fit = df_fit.set_index("index")
+        #df_fit = df_data.reset_index()
+        #df_fit["index"] = df_fit["index"].dt.\
+        #    tz_localize(self.instrument.timezone)
+        # df_fit = df_fit.set_index("index")
         # Set up the axes with gridspec
         freqs = df_fit.columns
-        begin = df_fit.index[0]
-        end = df_fit.index[-1]
+        datas = df_fit.index
+        BEGIN = df_fit.index[0]
+        END = df_fit.index[-1]
+        begin = datas[0]
+        end = datas[-1]
         ymin = self.pointings.dec.min().degree - self.instrument.fwhm
         ymax = self.pointings.dec.max().degree + self.instrument.fwhm
         fmt_major = mdates.MinuteLocator(interval=30)
@@ -660,7 +668,7 @@ class Sky:
         spectrum_ax.xaxis.set_tick_params(which='minor', bottom=True)
         # SKY
         if not df_sky.empty:
-            mask = (df_sky["TIME"] > begin) & (df_sky["TIME"] < end)
+            mask = (df_sky["TIME"] > BEGIN) & (df_sky["TIME"] < END)
             df_sky_filt = df_sky.loc[mask]
             for celeste in df_sky_filt.NAME.unique():
                 sky = df_sky_filt[df_sky_filt.NAME == celeste]
@@ -676,7 +684,7 @@ class Sky:
         sky_ax.legend(loc='upper center', bbox_to_anchor=(0.5, 2.0),
                       ncol=7, fancybox=True, shadow=True)
         # Vertical Plot
-        spectrum = df_fit.max(axis=0)
+        spectrum = df_fit.median(axis=0)
         # plot averaged spectrum in the vertical.
         ver_fig.plot(spectrum, freqs, c='red')
         ver_fig.grid()

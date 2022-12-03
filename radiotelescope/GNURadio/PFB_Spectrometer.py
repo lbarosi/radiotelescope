@@ -15,17 +15,10 @@ from gnuradio import fft
 from gnuradio.fft import window
 from gnuradio import fits_sink
 from gnuradio import gr
-from gnuradio.filter import firdes
 import sys
 import signal
-from argparse import ArgumentParser
-from gnuradio.eng_arg import eng_float, intx
-from gnuradio import eng_notation
 import numpy as np
 import osmosdr
-import time
-#import rtlstring
-
 
 
 class PFB_Spectrometer(gr.top_block):
